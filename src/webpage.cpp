@@ -58,6 +58,7 @@
 
 #include "phantom.h"
 #include "networkaccessmanager.h"
+#include "downloader.h"
 #include "utils.h"
 #include "config.h"
 #include "consts.h"
@@ -368,6 +369,7 @@ WebPage::WebPage(QObject *parent, const QUrl &baseUrl)
     connect(m_customWebPage, SIGNAL(windowCloseRequested()), this, SLOT(close()), Qt::QueuedConnection);
     connect(m_customWebPage, SIGNAL(loadProgress(int)), this, SLOT(updateLoadingProgress(int)));
     connect(m_customWebPage, SIGNAL(repaintRequested(QRect)), this, SLOT(handleRepaintRequested(QRect)), Qt::QueuedConnection);
+    connect(m_customWebPage, SIGNAL(unsupportedContent(QNetworkReply *)), SLOT(handleUnsupportedContent(QNetworkReply *)), Qt::QueuedConnection);
 
 
     // Start with transparent background.
@@ -699,7 +701,7 @@ QVariant WebPage::evaluateJavaScript(const QString &code)
     return evalResult;
 }
 
-QString WebPage::filePicker(const QString &oldFile)
+QString WebPage::filePicker(const QString &oldFile, bool mustExist)
 {
     qDebug() << "WebPage - filePicker" << "- old file:" << oldFile;
 
@@ -710,7 +712,7 @@ QString WebPage::filePicker(const QString &oldFile)
             QString filePath = res.toString();
             qDebug() << "WebPage - filePicker" << "- new file:" << filePath;
             // Return this value only if the file actually exists
-            if (QFile::exists(filePath)) {
+            if (mustExist == false || QFile::exists(filePath)) {
                 return filePath;
             }
         }
@@ -756,6 +758,12 @@ void WebPage::finish(bool ok)
 {
     QString status = ok ? "success" : "fail";
     emit loadFinished(status);
+}
+
+void WebPage::downloadFinish(bool ok)
+{
+    QString status = ok ? "success" : "fail";
+    emit downloadFinished(status);
 }
 
 void WebPage::setCustomHeaders(const QVariantMap &headers)
@@ -1624,6 +1632,21 @@ void WebPage::handleRepaintRequested(const QRect &dirtyRect)
     emit repaintRequested(dirtyRect.x(), dirtyRect.y(), dirtyRect.width(), dirtyRect.height());
 }
 
+void WebPage::handleUnsupportedContent(QNetworkReply *reply)
+{
+    qDebug() << "WebPage - handleUnsupportedContent: " << reply;
+
+    QString chosenFile = filePicker(QString::null, false);
+    if (chosenFile != QString::null ) {
+        QFile *i = new QFile(chosenFile, this);
+        i->open(QIODevice::WriteOnly);
+        Downloader *d = new Downloader(this, i, reply);
+        connect(d, SIGNAL(downloadFinished(bool)), SLOT(downloadFinish(bool)), Qt::QueuedConnection);
+        d->startDownload();
+    } else {
+        reply->deleteLater();
+    }
+}
 
 void WebPage::stopJavaScript()
 {

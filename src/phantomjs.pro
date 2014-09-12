@@ -21,6 +21,7 @@ HEADERS += \
     phantom.h \
     callback.h \
     webpage.h \
+    downloader.h \
     webserver.h \
     consts.h \
     utils.h \
@@ -39,6 +40,7 @@ HEADERS += \
 SOURCES += phantom.cpp \
     callback.cpp \
     webpage.cpp \
+    downloader.cpp \
     webserver.cpp \
     main.cpp \
     utils.cpp \
@@ -74,7 +76,7 @@ linux*|mac|openbsd* {
     SOURCES += breakpad/src/client/minidump_file_writer.cc \
       breakpad/src/common/convert_UTF.c \
       breakpad/src/common/md5.cc \
-      breakpad/src/common/string_conversion.cc 
+      breakpad/src/common/string_conversion.cc
 }
 
 linux* {
